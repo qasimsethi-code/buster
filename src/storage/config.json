@@ -12,7 +12,8 @@
       "Lj3MYlSr4L",
       "20221211221603_add_theme_support",
       "20221214080901_update_services",
-      "20240514170322_add_appversion"
+      "20240514170322_add_appversion",
+      "20250513000000_add_openai_speech_api"
     ],
     "session": ["20240514122825_initial_version"]
   }

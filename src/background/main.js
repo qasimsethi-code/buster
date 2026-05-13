@@ -35,7 +35,8 @@ import {
   captchaGoogleSpeechApiLangCodes,
   captchaIbmSpeechApiLangCodes,
   captchaMicrosoftSpeechApiLangCodes,
-  captchaWitSpeechApiLangCodes
+  captchaWitSpeechApiLangCodes,
+  captchaOpenAiSpeechApiLangCodes
 } from 'utils/data';
 import {targetEnv, clientAppVersion, mv3} from 'utils/config';
 
@@ -286,6 +287,7 @@ async function addBackgroundRequestListener() {
             // https://*.speech-to-text.watson.cloud.ibm.com/*
             // wss://*.speech-to-text.watson.cloud.ibm.com/*
             // https://*.stt.speech.microsoft.com/*
+            // https://api.openai.com/*
             requestDomains: [
               'google.com',
               'recaptcha.net',
@@ -293,7 +295,8 @@ async function addBackgroundRequestListener() {
               'speech.googleapis.com',
               'iam.cloud.ibm.com',
               'speech-to-text.watson.cloud.ibm.com',
-              'stt.speech.microsoft.com'
+              'stt.speech.microsoft.com',
+              'api.openai.com'
             ],
             initiatorDomains: [getExtensionDomain()],
             resourceTypes: ['websocket', 'xmlhttprequest']
@@ -316,7 +319,8 @@ async function addBackgroundRequestListener() {
         'https://speech.googleapis.com/*',
         '*://*.speech-to-text.watson.cloud.ibm.com/*',
         'https://iam.cloud.ibm.com/*',
-        'https://*.stt.speech.microsoft.com/*'
+        'https://*.stt.speech.microsoft.com/*',
+        'https://api.openai.com/*'
       ];
 
       const extraInfo = ['blocking', 'requestHeaders'];
@@ -637,6 +641,42 @@ async function getMicrosoftSpeechApiResult(
   }
 }
 
+async function getOpenAiSpeechApiResult(apiKey, audioContent, language) {
+  const formData = new FormData();
+  formData.append(
+    'file',
+    new Blob([audioContent], {type: 'audio/wav'}),
+    'audio.wav'
+  );
+  formData.append('model', 'whisper-1');
+  if (language) {
+    formData.append('language', language);
+  }
+
+  const rsp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + apiKey
+    },
+    body: formData,
+    credentials: 'omit'
+  });
+
+  if (rsp.status !== 200) {
+    if (rsp.status === 429) {
+      return {errorId: 'error_apiQuotaExceeded', errorTimeout: 6000};
+    }
+    throw new Error(`API response: ${rsp.status}, ${await rsp.text()}`);
+  }
+
+  const text = (await rsp.json()).text;
+  if (text) {
+    return {text: text.trim()};
+  }
+
+  return {};
+}
+
 async function transcribeAudio(audioUrl, lang) {
   const audioBuffer = await (
     await fetch(audioUrl, {credentials: 'omit'})
@@ -784,6 +824,41 @@ async function transcribeAudio(audioUrl, lang) {
         audioContent,
         'en-US'
       );
+    }
+  } else if (speechService === 'openaiSpeechApi') {
+    const {openaiSpeechApiKey: apiKey} = await storage.get('openaiSpeechApiKey');
+
+    if (!apiKey) {
+      showNotification({messageId: 'error_missingApiKey'});
+      return;
+    }
+
+    const language = captchaOpenAiSpeechApiLangCodes[lang] || 'en';
+
+    const result = await getOpenAiSpeechApiResult(apiKey, audioContent, language);
+    if (result.errorId) {
+      showNotification({
+        messageId: result.errorId,
+        timeout: result.errorTimeout
+      });
+      return;
+    }
+    solution = result.text;
+
+    if (!solution && language !== 'en' && tryEnglishSpeechModel) {
+      const retryResult = await getOpenAiSpeechApiResult(
+        apiKey,
+        audioContent,
+        'en'
+      );
+      if (retryResult.errorId) {
+        showNotification({
+          messageId: retryResult.errorId,
+          timeout: retryResult.errorTimeout
+        });
+        return;
+      }
+      solution = retryResult.text;
     }
   }
 
