@@ -140,6 +140,27 @@
         >
           {{ getText('linkText_apiGuide') }}
         </a>
+
+        <div
+          class="option text-field"
+          v-if="options.speechService === 'openaiSpeechApi'"
+        >
+          <vn-text-field
+            :label="getText('inputLabel_apiKey')"
+            v-model.trim="options.openaiSpeechApiKey"
+          >
+          </vn-text-field>
+        </div>
+
+        <a
+          class="service-guide"
+          v-if="options.speechService === 'openaiSpeechApi'"
+          target="_blank"
+          rel="noreferrer"
+          href="https://platform.openai.com/api-keys"
+        >
+          {{ getText('linkText_apiGuide') }}
+        </a>
       </div>
     </div>
 
@@ -332,7 +353,8 @@ export default {
               'googleSpeechApi',
               'witSpeechApi',
               'ibmSpeechApi',
-              'microsoftSpeechApi'
+              'microsoftSpeechApi',
+              'openaiSpeechApi'
             ]
           },
           {scope: 'optionValue_speechService'}
@@ -379,6 +401,7 @@ export default {
         microsoftSpeechApiLoc: '',
         microsoftSpeechApiKey: '',
         witSpeechApiKeys: {},
+        openaiSpeechApiKey: '',
         loadEnglishChallenge: false,
         tryEnglishSpeechModel: false,
         simulateUserInput: false,

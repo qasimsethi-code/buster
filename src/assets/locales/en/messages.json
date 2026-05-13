@@ -44,6 +44,11 @@
     "description": "Value of the option."
   },
 
+  "optionValue_speechService_openaiSpeechApi": {
+    "message": "OpenAI Whisper",
+    "description": "Value of the option."
+  },
+
   "optionTitle_microsoftSpeechApiLoc": {
     "message": "API location",
     "description": "Title of the option."
